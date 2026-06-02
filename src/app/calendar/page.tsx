@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { getStore } from "@/lib/storage";
 import { getTaskStore } from "@/lib/tasks";
@@ -24,6 +24,8 @@ export default function CalendarPage() {
   const [selected, setSelected] = useState(dateKey(today));
   const [dueTasks, setDueTasks] = useState<Task[]>([]);
 
+  const monthInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     let active = true;
     setLoading(true);
@@ -45,19 +47,43 @@ export default function CalendarPage() {
     };
   }, [year, month0]);
 
+  const loadTasks = async () => {
+    const s = await getTaskStore();
+    const tasks = await s.list();
+    setDueTasks(tasks.filter((t) => !t.done && t.dueDate));
+  };
+
   // 期日が設定された未完了タスク（カレンダーの赤ドット用）
   useEffect(() => {
-    let active = true;
-    getTaskStore()
-      .then((s) => s.list())
-      .then((tasks) => {
-        if (active) setDueTasks(tasks.filter((t) => !t.done && t.dueDate));
-      })
-      .catch(() => {});
-    return () => {
-      active = false;
-    };
+    loadTasks().catch(() => {});
   }, []);
+
+  // カレンダー上からタスクを完了 → 一覧と赤ドットから消える（Tasksタブにも反映）
+  const completeTask = async (id: string) => {
+    const s = await getTaskStore();
+    await s.update(id, { done: true });
+    await loadTasks();
+  };
+
+  // 年月クイックジャンプ（ネイティブの月ピッカー）
+  const openMonthPicker = () => {
+    const el = monthInputRef.current as
+      | (HTMLInputElement & { showPicker?: () => void })
+      | null;
+    if (!el) return;
+    try {
+      if (typeof el.showPicker === "function") el.showPicker();
+      else el.click();
+    } catch {
+      el.click();
+    }
+  };
+  const onMonthChange = (v: string) => {
+    const m = /^(\d{4})-(\d{2})$/.exec(v);
+    if (!m) return;
+    setYear(Number(m[1]));
+    setMonth0(Number(m[2]) - 1);
+  };
 
   const byDate = useMemo(() => {
     const m = new Map<string, DiaryEntry[]>();
@@ -104,9 +130,25 @@ export default function CalendarPage() {
         >
           ‹
         </button>
-        <h1 className="text-lg font-bold text-slate-900">
+        <button
+          type="button"
+          onClick={openMonthPicker}
+          aria-label="年月を選択"
+          className="flex items-center gap-1 rounded-lg px-2 py-1 text-lg font-bold text-slate-900 active:bg-slate-100"
+        >
           {year}年{month0 + 1}月
-        </h1>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-4 w-4 text-slate-400"
+          >
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </button>
         <button
           type="button"
           onClick={nextMonth}
@@ -116,6 +158,15 @@ export default function CalendarPage() {
           ›
         </button>
       </header>
+      <input
+        ref={monthInputRef}
+        type="month"
+        aria-hidden
+        tabIndex={-1}
+        value={`${year}-${String(month0 + 1).padStart(2, "0")}`}
+        onChange={(e) => onMonthChange(e.target.value)}
+        className="sr-only"
+      />
 
       <div className="mt-4 grid grid-cols-7 text-center text-xs text-slate-400">
         {WEEK_LABELS.map((d, i) => (
@@ -198,9 +249,14 @@ export default function CalendarPage() {
               {selectedTasks.map((t) => (
                 <li
                   key={t.id}
-                  className="flex items-center gap-2 rounded-xl border border-rose-100 bg-rose-50/60 px-3 py-2 text-sm text-slate-700"
+                  className="flex items-center gap-2.5 rounded-xl border border-rose-100 bg-rose-50/60 px-3 py-2 text-sm text-slate-700"
                 >
-                  <span className="h-1.5 w-1.5 flex-none rounded-full bg-rose-500" />
+                  <button
+                    type="button"
+                    onClick={() => completeTask(t.id)}
+                    aria-label="完了にする"
+                    className="h-5 w-5 flex-none rounded-md border border-rose-300 bg-white active:bg-rose-100"
+                  />
                   <span className="break-words">{t.content}</span>
                 </li>
               ))}
