@@ -26,7 +26,6 @@ export default function ReviewPage() {
   const [jumpNote, setJumpNote] = useState<string | null>(null);
 
   const reportRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-  const jumpInputRef = useRef<HTMLInputElement>(null);
 
   const cloud = isSupabaseConfigured();
 
@@ -101,15 +100,6 @@ export default function ReviewPage() {
     exitSelect();
   };
 
-  const openJumpPicker = () => {
-    const el = jumpInputRef.current;
-    if (!el) return;
-    try {
-      el.showPicker();
-    } catch {
-      el.click();
-    }
-  };
   const jumpToDate = (d: string) => {
     if (!d || !reports) return;
     const r = reports.find((rep) => rep.periodStart <= d && d <= rep.periodEnd);
@@ -118,6 +108,7 @@ export default function ReviewPage() {
       setTimeout(() => setJumpNote(null), 2500);
       return;
     }
+    setJumpNote(null);
     setExpandedId(r.id);
     reportRefs.current.get(r.id)?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
@@ -260,21 +251,13 @@ export default function ReviewPage() {
           {summary ? (
             <div className="mt-4 flex flex-col gap-4">
               <p className="text-xs text-slate-400">対象 {summary.count} 件</p>
-              <SectionCard accent="bg-indigo-500" title="学びと次回への教訓" subtitle="Insight & Lesson">
+              <SectionCard accent="bg-indigo-500" title="学びと次回への教訓">
                 <Bullets items={summary.lessons} />
               </SectionCard>
-              <SectionCard
-                accent="bg-emerald-500"
-                title="重要な決断と事実の記録"
-                subtitle="Decisions & Milestones"
-              >
+              <SectionCard accent="bg-emerald-500" title="重要な決断と事実の記録">
                 <Bullets items={summary.decisions} />
               </SectionCard>
-              <SectionCard
-                accent="bg-amber-500"
-                title="興味・関心と熱中したことの変遷"
-                subtitle="Trends & Passions"
-              >
+              <SectionCard accent="bg-amber-500" title="興味・関心と熱中したことの変遷">
                 <Bullets items={summary.trends} emptyText="傾向を抽出できる記録がありません" />
               </SectionCard>
             </div>
@@ -314,14 +297,15 @@ export default function ReviewPage() {
               </div>
             ) : (
               <div className="flex items-center gap-4">
-                <button
-                  type="button"
-                  onClick={openJumpPicker}
-                  aria-label="日付から探す"
-                  className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 text-slate-500 active:bg-slate-100"
-                >
+                <span className="relative inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 text-slate-500">
                   <CalendarGlyph />
-                </button>
+                  <input
+                    type="date"
+                    aria-label="日付から探す"
+                    onChange={(e) => jumpToDate(e.target.value)}
+                    className="absolute inset-0 cursor-pointer opacity-0"
+                  />
+                </span>
                 {(reports?.length ?? 0) > 0 ? (
                   <button
                     type="button"
@@ -335,14 +319,6 @@ export default function ReviewPage() {
             )}
           </div>
           {jumpNote ? <p className="mt-1 text-[11px] text-amber-600">{jumpNote}</p> : null}
-          <input
-            ref={jumpInputRef}
-            type="date"
-            aria-hidden
-            tabIndex={-1}
-            onChange={(e) => jumpToDate(e.target.value)}
-            className="sr-only"
-          />
 
           <div className="mt-3 flex flex-col gap-2">
             {reports === null ? (
@@ -405,25 +381,13 @@ export default function ReviewPage() {
                         {open ? (
                           <div className="border-t border-slate-100 px-4 pb-4 pt-3">
                             <div className="flex flex-col gap-4">
-                              <SectionCard
-                                accent="bg-indigo-500"
-                                title="学びと次回への教訓"
-                                subtitle="Insight & Lesson"
-                              >
+                              <SectionCard accent="bg-indigo-500" title="学びと次回への教訓">
                                 <Bullets items={r.summary.lessons} />
                               </SectionCard>
-                              <SectionCard
-                                accent="bg-emerald-500"
-                                title="重要な決断と事実の記録"
-                                subtitle="Decisions & Milestones"
-                              >
+                              <SectionCard accent="bg-emerald-500" title="重要な決断と事実の記録">
                                 <Bullets items={r.summary.decisions} />
                               </SectionCard>
-                              <SectionCard
-                                accent="bg-amber-500"
-                                title="興味・関心と熱中したことの変遷"
-                                subtitle="Trends & Passions"
-                              >
+                              <SectionCard accent="bg-amber-500" title="興味・関心と熱中したことの変遷">
                                 <Bullets
                                   items={r.summary.trends}
                                   emptyText="傾向を抽出できる記録がありません"
@@ -504,12 +468,10 @@ function Check() {
 function SectionCard({
   accent,
   title,
-  subtitle,
   children,
 }: {
   accent: string;
   title: string;
-  subtitle: string;
   children: React.ReactNode;
 }) {
   return (
@@ -517,9 +479,6 @@ function SectionCard({
       <div className="flex items-center gap-2.5 px-4 pt-3.5">
         <span className={`h-4 w-1 rounded-full ${accent}`} />
         <h2 className="text-sm font-bold text-slate-800">{title}</h2>
-        <span className="text-[10px] font-medium uppercase tracking-widest text-slate-300">
-          {subtitle}
-        </span>
       </div>
       <div className="px-4 pb-4 pt-2.5">{children}</div>
     </section>

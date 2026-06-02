@@ -32,13 +32,20 @@ export async function correctText(input: string): Promise<string> {
   }
 }
 
-const SUMMARY_SYSTEM = `あなたはユーザー専属のリフレクション・コーチです。期間内の日記から、将来の本人にとって価値のある「客観的な事実」と「実践的な教訓」だけを抽出します。日々の細かいタスクや一時的な感情の揺れはノイズとして除外してください。
-次の3カテゴリに分類し、それぞれ簡潔な日本語の箇条書き（各項目は1文、最大8項目）でまとめます。
-- lessons（学びと次回への教訓）: 「もっとこうすれば良かった」「次はこうしよう」という具体的な改善点・反省点。
-- decisions（重要な決断と事実の記録）: 主な出来事・新しい経験・キャリアや生活上の重要な判断の客観的なまとめ。
-- trends（興味・関心と熱中したことの変遷）: その期間に最も時間や思考を割いた対象の傾向（例: 技術学習、投資分析、音楽活動、ゲームなど）。
-該当が無いカテゴリは空配列にすること。創作や推測で埋めないこと。
-出力は次の形式のJSONのみ（前後に説明やコードブロックを付けない）:
+const SUMMARY_SYSTEM = `あなたはユーザー専属のリフレクション・コーチです。期間内の日記を読み、内容を3つのカテゴリに整理して日本語の箇条書きにまとめます。
+
+方針:
+- 記述が少ない・短い日記でも、書かれている内容から拾えることは必ず拾い上げる。安易に空配列にしない。
+- 日記に書かれている事実に基づくこと（作り話で埋めない）。ただし要約・言い換え・一般化はしてよい。
+- 各項目は簡潔な日本語1文。各カテゴリ最大8項目。
+
+カテゴリ:
+- lessons（学びと次回への教訓）: 反省・気づき・「次はこうしたい」など、改善につながる点。
+- decisions（重要な決断と事実の記録）: 起きた主な出来事・新しい経験・重要な判断や行動の客観的なまとめ。
+- trends（興味・関心と熱中したことの変遷）: よく登場する話題・打ち込んでいた対象（例: 技術学習、投資、音楽、ゲーム、仕事 など）。
+
+本当に1つも該当が無いカテゴリだけ空配列にする（迷う場合は最も近いカテゴリに1項目入れる）。
+出力は次の形式のJSONのみ。前後に説明・コードブロック・英語ラベルを付けない:
 {"lessons": ["..."], "decisions": ["..."], "trends": ["..."]}`;
 
 /** Summarize a period into the 3 categories. Falls back to the rule-based mock. */
@@ -51,7 +58,7 @@ export async function summarize(entries: DiaryEntry[]): Promise<Summary> {
     const out = await generate(buildSummaryPrompt(entries), {
       system: SUMMARY_SYSTEM,
       json: true,
-      temperature: 0.3,
+      temperature: 0.2,
     });
     const parsed = JSON.parse(stripFences(out)) as Record<string, unknown>;
     return {

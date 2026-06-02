@@ -16,15 +16,20 @@ import {
 import EntryCard from "@/components/EntryCard";
 
 export default function CalendarPage() {
-  const today = new Date();
-  const [year, setYear] = useState(today.getFullYear());
-  const [month0, setMonth0] = useState(today.getMonth());
+  // 日付依存の描画はマウント後だけ行う（サーバーUTC×クライアントJSTのズレ／ハイドレーション崩れを回避）
+  const [mounted, setMounted] = useState(false);
+  const [year, setYear] = useState(() => new Date().getFullYear());
+  const [month0, setMonth0] = useState(() => new Date().getMonth());
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState(dateKey(today));
+  const [selected, setSelected] = useState(() => dateKey(new Date()));
   const [dueTasks, setDueTasks] = useState<Task[]>([]);
 
   const monthInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -58,6 +63,30 @@ export default function CalendarPage() {
     loadTasks().catch(() => {});
   }, []);
 
+  const byDate = useMemo(() => {
+    const m = new Map<string, DiaryEntry[]>();
+    for (const e of entries) {
+      const k = dateKey(e.createdAt);
+      const arr = m.get(k);
+      if (arr) arr.push(e);
+      else m.set(k, [e]);
+    }
+    return m;
+  }, [entries]);
+
+  const dueByDate = useMemo(() => {
+    const m = new Map<string, Task[]>();
+    for (const t of dueTasks) {
+      if (!t.dueDate) continue;
+      const arr = m.get(t.dueDate);
+      if (arr) arr.push(t);
+      else m.set(t.dueDate, [t]);
+    }
+    return m;
+  }, [dueTasks]);
+
+  const grid = useMemo(() => monthGrid(year, month0), [year, month0]);
+
   // カレンダー上からタスクを完了 → 一覧と赤ドットから消える（Tasksタブにも反映）
   const completeTask = async (id: string) => {
     const s = await getTaskStore();
@@ -85,39 +114,24 @@ export default function CalendarPage() {
     setMonth0(Number(m[2]) - 1);
   };
 
-  const byDate = useMemo(() => {
-    const m = new Map<string, DiaryEntry[]>();
-    for (const e of entries) {
-      const k = dateKey(e.createdAt);
-      const arr = m.get(k);
-      if (arr) arr.push(e);
-      else m.set(k, [e]);
-    }
-    return m;
-  }, [entries]);
-
-  const dueByDate = useMemo(() => {
-    const m = new Map<string, Task[]>();
-    for (const t of dueTasks) {
-      if (!t.dueDate) continue;
-      const arr = m.get(t.dueDate);
-      if (arr) arr.push(t);
-      else m.set(t.dueDate, [t]);
-    }
-    return m;
-  }, [dueTasks]);
-
-  const grid = useMemo(() => monthGrid(year, month0), [year, month0]);
-  const todayKey = dateKey(today);
-  const selectedEntries = (byDate.get(selected) ?? [])
-    .slice()
-    .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
-  const selectedTasks = dueByDate.get(selected) ?? [];
-
   const prevMonth = () =>
     month0 === 0 ? (setYear((y) => y - 1), setMonth0(11)) : setMonth0((m) => m - 1);
   const nextMonth = () =>
     month0 === 11 ? (setYear((y) => y + 1), setMonth0(0)) : setMonth0((m) => m + 1);
+
+  if (!mounted) {
+    return (
+      <main className="flex flex-1 flex-col px-4 pb-28 pt-6">
+        <p className="py-16 text-center text-sm text-slate-400">読み込み中…</p>
+      </main>
+    );
+  }
+
+  const todayKey = dateKey(new Date());
+  const selectedEntries = (byDate.get(selected) ?? [])
+    .slice()
+    .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
+  const selectedTasks = dueByDate.get(selected) ?? [];
 
   return (
     <main className="flex flex-1 flex-col px-4 pb-28 pt-6">
