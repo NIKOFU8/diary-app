@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useState } from "react";
 import { getTaskStore } from "@/lib/tasks";
 import type { Task } from "@/lib/tasks";
+import NotificationToggle from "@/components/NotificationToggle";
 
 const NOTIFY_OPTIONS: { value: number | null; label: string }[] = [
   { value: null, label: "通知なし" },
@@ -99,6 +100,8 @@ export default function TasksPage() {
       <p className="mt-1 text-xs text-slate-400">
         日記から自動で追加されるほか、手動でも追加できます
       </p>
+
+      <NotificationToggle />
 
       <div className="mt-3 flex gap-2">
         <input

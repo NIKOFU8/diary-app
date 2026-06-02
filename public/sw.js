@@ -1,8 +1,9 @@
-// Minimal service worker: app-shell precache + runtime caching.
+// Minimal service worker: app-shell precache + runtime caching + Web Push.
 const CACHE = "diary-app-v1";
 const APP_SHELL = [
   "/",
   "/calendar",
+  "/tasks",
   "/search",
   "/review",
   "/record",
@@ -64,5 +65,43 @@ self.addEventListener("fetch", (event) => {
           })
           .catch(() => cached),
     ),
+  );
+});
+
+// --- Web Push -------------------------------------------------------------
+
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { body: event.data ? event.data.text() : "" };
+  }
+  const title = data.title || "まいにち日記";
+  const options = {
+    body: data.body || "",
+    icon: "/icon.svg",
+    badge: "/icon.svg",
+    tag: data.tag,
+    data: { url: data.url || "/tasks" },
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = (event.notification.data && event.notification.data.url) || "/tasks";
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((clients) => {
+        for (const c of clients) {
+          if ("focus" in c) {
+            c.navigate(target);
+            return c.focus();
+          }
+        }
+        return self.clients.openWindow(target);
+      }),
   );
 });
