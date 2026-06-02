@@ -69,6 +69,29 @@ export function createSupabaseStore(): DiaryStore {
       return toEntry(data as Row);
     },
 
+    async update(id, patch) {
+      const row: Record<string, unknown> = {};
+      if (patch.weather !== undefined) row.weather = patch.weather;
+      if (patch.condition !== undefined) row.condition = patch.condition;
+      if (patch.body !== undefined) row.body = patch.body;
+      if (patch.photoDataUrl !== undefined) {
+        if (patch.photoDataUrl === null) row.photo_url = null;
+        else if (patch.photoDataUrl.startsWith("data:")) {
+          row.photo_url = await uploadPhoto(patch.photoDataUrl);
+        } else {
+          row.photo_url = patch.photoDataUrl; // 既にアップロード済みURL → 維持
+        }
+      }
+      const { data, error } = await sb
+        .from("entries")
+        .update(row)
+        .eq("id", id)
+        .select()
+        .single();
+      if (error) throw error;
+      return toEntry(data as Row);
+    },
+
     async listAll() {
       const { data, error } = await sb
         .from("entries")

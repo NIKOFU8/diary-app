@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-type IconName = "home" | "calendar" | "search" | "insight";
+type IconName = "home" | "calendar" | "tasks" | "search" | "insight";
 
 const ITEMS: { href: string; label: string; icon: IconName }[] = [
   { href: "/", label: "ホーム", icon: "home" },
   { href: "/calendar", label: "カレンダー", icon: "calendar" },
+  { href: "/tasks", label: "タスク", icon: "tasks" },
   { href: "/search", label: "検索", icon: "search" },
   { href: "/review", label: "振り返り", icon: "insight" },
 ];
@@ -35,6 +36,14 @@ function Icon({ name }: { name: IconName }) {
         <svg {...p}>
           <rect x="3.5" y="5" width="17" height="15" rx="2" />
           <path d="M3.5 9.5h17M8 3.5v3M16 3.5v3" />
+        </svg>
+      );
+    case "tasks":
+      return (
+        <svg {...p}>
+          <path d="m3.5 7 1.5 1.5L8 5.5" />
+          <path d="m3.5 17 1.5 1.5L8 15.5" />
+          <path d="M11 7h9.5M11 17h9.5" />
         </svg>
       );
     case "search":

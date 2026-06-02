@@ -1,55 +1,17 @@
-// IndexedDB-backed store. Runs entirely in the browser, no setup required.
+// IndexedDB-backed diary store. Runs entirely in the browser, no setup required.
 
 import type { DiaryEntry, NewEntryInput } from "@/lib/types";
 import type { DiaryStore } from "./index";
+import { openDB, idbRequest, genId, ENTRIES } from "@/lib/idb";
 
-const DB_NAME = "diary-app";
-const DB_VERSION = 1;
-const STORE = "entries";
-
-function openDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    if (typeof indexedDB === "undefined") {
-      reject(new Error("IndexedDB is not available in this environment"));
-      return;
-    }
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(STORE)) {
-        const os = db.createObjectStore(STORE, { keyPath: "id" });
-        os.createIndex("createdAt", "createdAt");
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-function store(db: IDBDatabase, mode: IDBTransactionMode) {
-  return db.transaction(STORE, mode).objectStore(STORE);
-}
-
-function toPromise<T>(req: IDBRequest<T>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-function genId(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+function tx(db: IDBDatabase, mode: IDBTransactionMode) {
+  return db.transaction(ENTRIES, mode).objectStore(ENTRIES);
 }
 
 async function allEntries(): Promise<DiaryEntry[]> {
   const db = await openDB();
   try {
-    const result = await toPromise(
-      store(db, "readonly").getAll() as IDBRequest<DiaryEntry[]>,
-    );
+    const result = await idbRequest(tx(db, "readonly").getAll() as IDBRequest<DiaryEntry[]>);
     return result.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
   } finally {
     db.close();
@@ -69,11 +31,33 @@ export function createLocalStore(): DiaryStore {
       };
       const db = await openDB();
       try {
-        await toPromise(store(db, "readwrite").put(entry));
+        await idbRequest(tx(db, "readwrite").put(entry));
       } finally {
         db.close();
       }
       return entry;
+    },
+
+    async update(id, patch) {
+      const db = await openDB();
+      try {
+        const existing = await idbRequest(
+          tx(db, "readonly").get(id) as IDBRequest<DiaryEntry | undefined>,
+        );
+        if (!existing) throw new Error("entry not found");
+        const updated: DiaryEntry = {
+          ...existing,
+          weather: patch.weather ?? existing.weather,
+          condition: patch.condition ?? existing.condition,
+          body: patch.body ?? existing.body,
+          photoUrl:
+            patch.photoDataUrl === undefined ? existing.photoUrl : patch.photoDataUrl,
+        };
+        await idbRequest(tx(db, "readwrite").put(updated));
+        return updated;
+      } finally {
+        db.close();
+      }
     },
 
     listAll() {
@@ -88,8 +72,8 @@ export function createLocalStore(): DiaryStore {
     async get(id) {
       const db = await openDB();
       try {
-        const result = await toPromise(
-          store(db, "readonly").get(id) as IDBRequest<DiaryEntry | undefined>,
+        const result = await idbRequest(
+          tx(db, "readonly").get(id) as IDBRequest<DiaryEntry | undefined>,
         );
         return result ?? null;
       } finally {
@@ -100,7 +84,7 @@ export function createLocalStore(): DiaryStore {
     async remove(id) {
       const db = await openDB();
       try {
-        await toPromise(store(db, "readwrite").delete(id));
+        await idbRequest(tx(db, "readwrite").delete(id));
       } finally {
         db.close();
       }

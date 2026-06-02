@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { getStore } from "@/lib/storage";
 import type { DiaryEntry } from "@/lib/types";
@@ -50,14 +51,22 @@ export default function EntryDetailPage() {
           ←
         </button>
         {entry ? (
-          <button
-            type="button"
-            onClick={handleDelete}
-            disabled={deleting}
-            className="rounded-full px-3 py-1.5 text-sm font-medium text-rose-500 active:bg-rose-50 disabled:opacity-50"
-          >
-            {deleting ? "削除中…" : "削除"}
-          </button>
+          <div className="flex items-center gap-1">
+            <Link
+              href={`/entry/${id}/edit`}
+              className="rounded-full px-3 py-1.5 text-sm font-medium text-indigo-600 active:bg-indigo-50"
+            >
+              編集
+            </Link>
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="rounded-full px-3 py-1.5 text-sm font-medium text-rose-500 active:bg-rose-50 disabled:opacity-50"
+            >
+              {deleting ? "削除中…" : "削除"}
+            </button>
+          </div>
         ) : null}
       </header>
 

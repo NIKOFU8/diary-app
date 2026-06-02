@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { getStore } from "@/lib/storage";
+import { getTaskStore } from "@/lib/tasks";
+import type { Task } from "@/lib/tasks";
 import type { DiaryEntry } from "@/lib/types";
 import {
   monthGrid,
@@ -20,6 +22,7 @@ export default function CalendarPage() {
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(dateKey(today));
+  const [dueTasks, setDueTasks] = useState<Task[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -42,6 +45,20 @@ export default function CalendarPage() {
     };
   }, [year, month0]);
 
+  // 期日が設定された未完了タスク（カレンダーの赤ドット用）
+  useEffect(() => {
+    let active = true;
+    getTaskStore()
+      .then((s) => s.list())
+      .then((tasks) => {
+        if (active) setDueTasks(tasks.filter((t) => !t.done && t.dueDate));
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const byDate = useMemo(() => {
     const m = new Map<string, DiaryEntry[]>();
     for (const e of entries) {
@@ -53,11 +70,23 @@ export default function CalendarPage() {
     return m;
   }, [entries]);
 
+  const dueByDate = useMemo(() => {
+    const m = new Map<string, Task[]>();
+    for (const t of dueTasks) {
+      if (!t.dueDate) continue;
+      const arr = m.get(t.dueDate);
+      if (arr) arr.push(t);
+      else m.set(t.dueDate, [t]);
+    }
+    return m;
+  }, [dueTasks]);
+
   const grid = useMemo(() => monthGrid(year, month0), [year, month0]);
   const todayKey = dateKey(today);
   const selectedEntries = (byDate.get(selected) ?? [])
     .slice()
     .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
+  const selectedTasks = dueByDate.get(selected) ?? [];
 
   const prevMonth = () =>
     month0 === 0 ? (setYear((y) => y - 1), setMonth0(11)) : setMonth0((m) => m - 1);
@@ -101,6 +130,7 @@ export default function CalendarPage() {
           const k = dateKey(d);
           const inMonth = d.getMonth() === month0;
           const has = byDate.has(k);
+          const hasTask = dueByDate.has(k);
           const isSel = k === selected;
           const isToday = k === todayKey;
           return (
@@ -117,16 +147,34 @@ export default function CalendarPage() {
               } ${isToday && !isSel ? "ring-1 ring-inset ring-indigo-300" : ""}`}
             >
               <span>{d.getDate()}</span>
-              {has ? (
-                <span
-                  className={`absolute bottom-1.5 h-1.5 w-1.5 rounded-full ${
-                    isSel ? "bg-white" : "bg-indigo-500"
-                  }`}
-                />
+              {has || hasTask ? (
+                <span className="absolute bottom-1 flex gap-0.5">
+                  {has ? (
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ${isSel ? "bg-white" : "bg-indigo-500"}`}
+                    />
+                  ) : null}
+                  {hasTask ? (
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ${isSel ? "bg-rose-200" : "bg-rose-500"}`}
+                    />
+                  ) : null}
+                </span>
               ) : null}
             </button>
           );
         })}
+      </div>
+
+      <div className="mt-2 flex items-center justify-center gap-4 text-[11px] text-slate-400">
+        <span className="flex items-center gap-1.5">
+          <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
+          日記
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+          タスク期日
+        </span>
       </div>
 
       <section className="mt-6 flex-1">
@@ -142,6 +190,23 @@ export default function CalendarPage() {
             selectedEntries.map((e) => <EntryCard key={e.id} entry={e} />)
           )}
         </div>
+
+        {selectedTasks.length > 0 ? (
+          <div className="mt-5">
+            <h3 className="text-xs font-semibold text-rose-500">この日が期日のタスク</h3>
+            <ul className="mt-2 flex flex-col gap-1.5">
+              {selectedTasks.map((t) => (
+                <li
+                  key={t.id}
+                  className="flex items-center gap-2 rounded-xl border border-rose-100 bg-rose-50/60 px-3 py-2 text-sm text-slate-700"
+                >
+                  <span className="h-1.5 w-1.5 flex-none rounded-full bg-rose-500" />
+                  <span className="break-words">{t.content}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </section>
 
       <div className="pointer-events-none fixed inset-x-0 bottom-20 z-30 mx-auto flex w-full max-w-md justify-end px-5">

@@ -224,3 +224,60 @@ export function summarizeMock(entries: DiaryEntry[]): Summary {
     trends,
   };
 }
+
+// ===========================================================================
+// タスク抽出（フェーズ3）— 日記保存時に「やりたいこと・やるべきこと・目標」を抽出
+// ===========================================================================
+
+const EXTRACT_SYSTEM = `あなたは日記からタスク（やること）を抽出するアシスタントです。日記本文から、書き手の「これからやりたいこと・やらなければならないこと・予定・目標」を漏れなく抜き出し、短い実行可能なタスク名（日本語）に整えてください。
+
+ルール:
+- 未来の行動・予定・買い物・締め切りは必ず抽出する（例:「明日〜する」「明後日までに〜する」「来週〜したい」「〜を買う」「〜に行く」など）。短い日記でも、行動の予定が1つでもあれば抽出する。
+- すでに完了した事柄、単なる感想・事実の記録は含めない。
+- 「明日」「明後日」「来週」「〜までに」などの日付・期限の表現はタスク名から除き、行動だけを残す。
+- 重複は避け、最大5件。該当が無ければ空配列。
+
+出力はJSON配列のみ（前後に説明やコードブロックを付けない）。
+
+例:
+入力: 明後日までに買い物に行く
+出力: ["買い物に行く"]
+
+入力: 今日は疲れた。明日は早起きしたいし、週末までにレポートを終わらせる。
+出力: ["早起きする","レポートを終わらせる"]
+
+入力: 友達とランチして楽しかった。
+出力: []`;
+
+const INTENT_MARKERS = [
+  "したい", "しよう", "する予定", "やりたい", "やらなきゃ", "やらないと",
+  "しなきゃ", "しないと", "つもり", "目標", "終わらせる", "予定", "ねば",
+  "買う", "行く", "までに",
+];
+
+/** 日記からタスク候補を抽出。Gemini優先、未設定/失敗時はルールベース。 */
+export async function extractTasks(text: string): Promise<string[]> {
+  const body = (text ?? "").trim();
+  if (!body) return [];
+  if (!isGeminiConfigured()) return extractTasksMock(body);
+  try {
+    const out = await generate(`次の日記からタスクを抽出してください。\n\n${body}`, {
+      system: EXTRACT_SYSTEM,
+      json: true,
+      temperature: 0.2,
+    });
+    return sanitizeList(JSON.parse(stripFences(out)), 5);
+  } catch (e) {
+    console.warn("[ai] extractTasks fell back to mock:", (e as Error).message);
+    return extractTasksMock(body);
+  }
+}
+
+export function extractTasksMock(text: string): string[] {
+  const out: string[] = [];
+  for (const s of splitSentences(text)) {
+    if (out.length >= 5) break;
+    if (INTENT_MARKERS.some((m) => s.includes(m))) pushUnique(out, clip(s, 40));
+  }
+  return out;
+}

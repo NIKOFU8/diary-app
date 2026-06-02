@@ -2,10 +2,19 @@
 // chosen at runtime: Supabase when its env vars are present, otherwise the
 // browser's IndexedDB so the app works with zero configuration.
 
-import type { DiaryEntry, NewEntryInput } from "@/lib/types";
+import type { DiaryEntry, NewEntryInput, Weather, Condition } from "@/lib/types";
+
+export interface EntryUpdate {
+  weather?: Weather;
+  condition?: Condition;
+  body?: string;
+  /** undefined=変更しない / null=削除 / "data:..."=差し替え / "http..."=既存維持 */
+  photoDataUrl?: string | null;
+}
 
 export interface DiaryStore {
   create(input: NewEntryInput): Promise<DiaryEntry>;
+  update(id: string, patch: EntryUpdate): Promise<DiaryEntry>;
   listAll(): Promise<DiaryEntry[]>;
   listBetween(startISO: string, endISO: string): Promise<DiaryEntry[]>;
   get(id: string): Promise<DiaryEntry | null>;
