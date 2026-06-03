@@ -12,6 +12,7 @@ interface Row {
   notify_days_before: number | null;
   source: TaskSource;
   entry_id: string | null;
+  sort_order: number | null;
 }
 
 function toTask(r: Row): Task {
@@ -25,6 +26,7 @@ function toTask(r: Row): Task {
     notifyDaysBefore: r.notify_days_before,
     source: r.source,
     entryId: r.entry_id,
+    sortOrder: r.sort_order,
   };
 }
 
@@ -46,6 +48,8 @@ export function createSupabaseTaskStore(): TaskStore {
           notify_days_before: input.notifyDaysBefore ?? null,
           source: input.source ?? "manual",
           entry_id: input.entryId ?? null,
+          // 新規は末尾側に来るよう大きめの値（手動並び替え時に 0..n へ振り直す）
+          sort_order: Date.now(),
         })
         .select()
         .single();
@@ -81,6 +85,21 @@ export function createSupabaseTaskStore(): TaskStore {
     async removeCompleted() {
       const { error } = await sb.from("tasks").delete().eq("done", true);
       if (error) throw error;
+    },
+
+    async reorder(orderedIds) {
+      // 先頭が一番上になるよう sort_order を 0..n で振り直す
+      await Promise.all(
+        orderedIds.map((id, i) =>
+          sb
+            .from("tasks")
+            .update({ sort_order: i })
+            .eq("id", id)
+            .then(({ error }) => {
+              if (error) throw error;
+            }),
+        ),
+      );
     },
   };
 }

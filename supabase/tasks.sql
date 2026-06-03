@@ -18,11 +18,16 @@ create table if not exists public.tasks (
   notify_days_before smallint check (notify_days_before between 0 and 365), -- 〇日前に通知（null=通知なし）
   notified_at timestamptz,                              -- 通知済み記録（重複通知防止）
   source text not null default 'manual' check (source in ('manual', 'ai')), -- 手動 / AI抽出
-  entry_id uuid references public.entries (id) on delete set null           -- 抽出元の日記（任意）
+  entry_id uuid references public.entries (id) on delete set null,          -- 抽出元の日記（任意）
+  sort_order bigint                                                          -- 「期日なし」グループ内の手動並び替え順（小さいほど上）
 );
+
+-- 既存DB向けマイグレーション（冪等）: 列が無ければ追加する
+alter table public.tasks add column if not exists sort_order bigint;
 
 create index if not exists tasks_user_done_due_idx on public.tasks (user_id, done, due_date);
 create index if not exists tasks_user_due_idx on public.tasks (user_id, due_date);
+create index if not exists tasks_user_sort_idx on public.tasks (user_id, sort_order);
 
 alter table public.tasks enable row level security;
 

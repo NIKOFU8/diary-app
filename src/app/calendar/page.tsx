@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { getStore } from "@/lib/storage";
 import { getTaskStore } from "@/lib/tasks";
@@ -128,6 +128,27 @@ export default function CalendarPage() {
   const nextMonth = () =>
     month0 === 11 ? (setYear((y) => y + 1), setMonth0(0)) : setMonth0((m) => m + 1);
 
+  // カレンダー領域の左右スワイプで月移動（iOS Safari のネイティブ戻る/進むと競合しないよう
+  // 画面端ではなくカレンダー内のタッチのみを対象にする）
+  const swipeStart = useRef<{ x: number; y: number } | null>(null);
+  const onTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    swipeStart.current = { x: t.clientX, y: t.clientY };
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const start = swipeStart.current;
+    swipeStart.current = null;
+    if (!start) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    // 横方向が十分大きく、かつ縦方向より明確に大きいときだけ月移動（縦スクロールと区別）
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      if (dx < 0) nextMonth(); // 左へスワイプ → 翌月
+      else prevMonth(); // 右へスワイプ → 先月
+    }
+  };
+
   if (!mounted) {
     return (
       <main className="flex flex-1 flex-col px-4 pb-28 pt-6">
@@ -205,7 +226,8 @@ export default function CalendarPage() {
         </button>
       </header>
 
-      <div className="mt-4 grid grid-cols-7 text-center text-xs text-slate-400">
+      <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} className="touch-pan-y">
+        <div className="mt-4 grid grid-cols-7 text-center text-xs text-slate-400">
         {WEEK_LABELS.map((d, i) => (
           <div key={d} className={i === 0 ? "text-rose-400" : i === 6 ? "text-sky-400" : ""}>
             {d}
@@ -263,6 +285,7 @@ export default function CalendarPage() {
           <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
           タスク期日
         </span>
+      </div>
       </div>
 
       <section className="mt-6 flex-1">

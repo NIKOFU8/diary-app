@@ -15,6 +15,11 @@ export interface Task {
   notifyDaysBefore: number | null;
   source: TaskSource;
   entryId: string | null;
+  /**
+   * 「期日なし」グループ内での手動並び替え順（小さいほど上）。
+   * 既存データは null になり得るため、比較時は createdAt にフォールバックする。
+   */
+  sortOrder: number | null;
 }
 
 export interface NewTaskInput {
@@ -38,13 +43,18 @@ export interface TaskStore {
   update(id: string, patch: TaskUpdate): Promise<Task>;
   remove(id: string): Promise<void>;
   removeCompleted(): Promise<void>;
+  /**
+   * 「期日なし」タスクの手動並び替えを保存する。
+   * 引数は表示順に並べたタスクIDの配列。先頭が一番上（sortOrder=0,1,2,…）。
+   */
+  reorder(orderedIds: string[]): Promise<void>;
 }
 
 /**
  * 並び順:
  *  1. 未完了 → 完了 の順（完了は常に下へ）。
  *  2. 未完了のうち「期日なし」を最優先で上に表示する。
- *     - 期日なし同士: 作成日時の古い順（昇順）。
+ *     - 期日なし同士: 手動並び替え順(sortOrder)の昇順。未設定は作成日時の古い順にフォールバック。
  *     - 期日あり同士: 期日の早い順（昇順）、同日なら作成日時の古い順。
  *  3. 完了は完了時刻の新しい順。
  */
@@ -56,7 +66,12 @@ export function compareTasks(a: Task, b: Task): number {
     // 期日なしを期日ありより常に上に
     if (aHasDue !== bHasDue) return aHasDue ? 1 : -1;
     if (!aHasDue) {
-      // どちらも期日なし → 作成日時の古い順
+      // どちらも期日なし → 手動並び替え順(sortOrder)、未設定は作成日時の古い順
+      const ao = a.sortOrder;
+      const bo = b.sortOrder;
+      if (ao != null && bo != null && ao !== bo) return ao < bo ? -1 : 1;
+      if (ao != null && bo == null) return -1; // 並び替え済みを未設定より上に
+      if (ao == null && bo != null) return 1;
       return a.createdAt < b.createdAt ? -1 : 1;
     }
     // どちらも期日あり → 期日昇順（同日は作成日時の古い順）

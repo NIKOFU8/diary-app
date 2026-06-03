@@ -33,6 +33,8 @@ export function createLocalTaskStore(): TaskStore {
         notifyDaysBefore: input.notifyDaysBefore ?? null,
         source: input.source ?? "manual",
         entryId: input.entryId ?? null,
+        // 新規は末尾側に来るよう大きめの値（手動並び替え時に 0..n へ振り直す）
+        sortOrder: Date.now(),
       };
       const db = await openDB();
       try {
@@ -90,6 +92,24 @@ export function createLocalTaskStore(): TaskStore {
         await Promise.all(
           rows.filter((t) => t.done).map((t) => idbRequest(store.delete(t.id))),
         );
+      } finally {
+        db.close();
+      }
+    },
+
+    async reorder(orderedIds) {
+      const db = await openDB();
+      try {
+        const rows = await idbRequest(tx(db, "readonly").getAll() as IDBRequest<Task[]>);
+        const byId = new Map(rows.map((r) => [r.id, r]));
+        // 同一トランザクション内で全 put を同期的に発行（await を挟むと自動コミットされるため）
+        const store = tx(db, "readwrite");
+        const puts: Promise<unknown>[] = [];
+        orderedIds.forEach((id, i) => {
+          const existing = byId.get(id);
+          if (existing) puts.push(idbRequest(store.put({ ...existing, sortOrder: i })));
+        });
+        await Promise.all(puts);
       } finally {
         db.close();
       }
