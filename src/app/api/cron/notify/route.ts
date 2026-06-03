@@ -5,6 +5,9 @@ import { summarize } from "@/lib/ai/engine";
 import { duePeriods, jstPeriodRangeISO } from "@/lib/reports/period";
 import type { DiaryEntry, Condition, Weather } from "@/lib/types";
 
+// 年間レポートは月ごとの要約→統合（Map-Reduce）で複数回AIを呼ぶため、実行時間を長めに確保する
+export const maxDuration = 60;
+
 interface SubRow {
   endpoint: string;
   p256dh: string;
@@ -151,7 +154,8 @@ async function runReportGeneration(sb: SupabaseClient): Promise<{ generated: num
         body: r.body,
         photoUrl: r.photo_url,
       }));
-      const summary = await summarize(entries);
+      // 年間レポートは階層的要約（各月→年間の Map-Reduce）で精度を確保する
+      const summary = await summarize(entries, { longRange: period.type === "year" });
 
       const { data: inserted, error: insErr } = await sb
         .from("reports")

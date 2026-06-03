@@ -46,7 +46,7 @@ export default function ReviewPage() {
     try {
       const s = await getStore();
       const entries = await s.listBetween(dayRange(start).startISO, dayRange(end).endISO);
-      setSummary(await summarizeRemote(entries));
+      setSummary(await summarizeRemote(entries, { start, end }));
     } catch {
       setError("まとめの生成に失敗しました");
     } finally {

@@ -15,11 +15,15 @@ export async function correctTextRemote(text: string): Promise<string> {
   return json.text;
 }
 
-export async function summarizeRemote(entries: DiaryEntry[]): Promise<Summary> {
+export async function summarizeRemote(
+  entries: DiaryEntry[],
+  range?: { start: string; end: string },
+): Promise<Summary> {
   const res = await fetch("/api/ai/summarize", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ entries }),
+    // 期間(start/end)も送り、年間など長期間ならサーバ側で階層的要約に切り替える
+    body: JSON.stringify({ entries, start: range?.start, end: range?.end }),
   });
   if (!res.ok) throw new Error("まとめの生成に失敗しました");
   return (await res.json()) as Summary;
