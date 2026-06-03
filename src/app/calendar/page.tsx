@@ -162,6 +162,8 @@ export default function CalendarPage() {
     .slice()
     .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
   const selectedTasks = dueByDate.get(selected) ?? [];
+  // 選択中の日付が「今日」または「過去」なら、その日の未完了タスクは警告色で強調する
+  const dueWarn = selected <= todayKey;
 
   return (
     <main className="flex flex-1 flex-col px-4 pb-28 pt-6">
@@ -299,13 +301,17 @@ export default function CalendarPage() {
               {selectedTasks.map((t) => (
                 <li
                   key={t.id}
-                  className="flex items-center gap-2.5 rounded-xl border border-rose-100 bg-rose-50/60 px-3 py-2 text-sm text-slate-700"
+                  className={`flex items-center gap-2.5 rounded-xl border px-3 py-2 text-sm text-slate-700 ${
+                    dueWarn ? "border-rose-200 bg-rose-50" : "border-slate-200 bg-white"
+                  }`}
                 >
                   <button
                     type="button"
                     onClick={() => completeTask(t.id)}
                     aria-label="完了にする"
-                    className="h-5 w-5 flex-none rounded-md border border-rose-300 bg-white active:bg-rose-100"
+                    className={`h-5 w-5 flex-none rounded-md border bg-white ${
+                      dueWarn ? "border-rose-300 active:bg-rose-100" : "border-slate-300 active:bg-slate-100"
+                    }`}
                   />
                   <span className="break-words">{t.content}</span>
                 </li>

@@ -195,6 +195,8 @@ export default function TasksPage() {
   };
 
   const renderCard = (t: Task, drag?: DragHandleProps): ReactNode => {
+    // 未完了かつ「今日」または「過去」の期日 → カード全体を薄い警告色で強調（完了済みは対象外）
+    const warn = !t.done && !!t.dueDate && t.dueDate <= todayKey();
     if (editingId === t.id) {
       return (
         <div
@@ -276,9 +278,11 @@ export default function TasksPage() {
         style={drag?.style}
         {...(drag?.attributes ?? {})}
         {...(drag?.listeners ?? {})}
-        className={`flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 ${
-          drag ? "select-none touch-manipulation" : ""
-        } ${drag?.isDragging ? "opacity-80 shadow-lg ring-1 ring-indigo-200" : ""}`}
+        className={`flex items-start gap-3 rounded-2xl border p-3.5 ${
+          warn ? "border-rose-200 bg-rose-50" : "border-slate-200 bg-white"
+        } ${drag ? "select-none touch-manipulation" : ""} ${
+          drag?.isDragging ? "opacity-80 shadow-lg ring-1 ring-indigo-200" : ""
+        }`}
       >
         {drag ? (
           <span className="mt-0.5 flex-none cursor-grab text-slate-300" aria-hidden>
@@ -318,7 +322,12 @@ export default function TasksPage() {
           {t.dueDate || t.notifyDaysBefore !== null ? (
             <span className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-400">
               {t.dueDate ? (
-                <span className={!t.done && t.dueDate < todayKey() ? "text-rose-500" : ""}>
+                <span
+                  className={
+                    // 未完了かつ「今日」または「過去」の期日は警告色で強調（完了済みは対象外）
+                    !t.done && t.dueDate <= todayKey() ? "font-semibold text-rose-600" : ""
+                  }
+                >
                   期日 {mdLabel(t.dueDate)}
                 </span>
               ) : null}
