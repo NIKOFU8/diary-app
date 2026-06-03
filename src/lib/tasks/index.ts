@@ -41,15 +41,26 @@ export interface TaskStore {
 }
 
 /**
- * 並び順: 未完了→完了 の順。未完了は期日昇順（未設定は最後）→作成順。
- * 完了は完了時刻の新しい順。チェックすると自然と一番下へ移動する。
+ * 並び順:
+ *  1. 未完了 → 完了 の順（完了は常に下へ）。
+ *  2. 未完了のうち「期日なし」を最優先で上に表示する。
+ *     - 期日なし同士: 作成日時の古い順（昇順）。
+ *     - 期日あり同士: 期日の早い順（昇順）、同日なら作成日時の古い順。
+ *  3. 完了は完了時刻の新しい順。
  */
 export function compareTasks(a: Task, b: Task): number {
   if (a.done !== b.done) return a.done ? 1 : -1;
   if (!a.done) {
-    const ad = a.dueDate ?? "9999-12-31";
-    const bd = b.dueDate ?? "9999-12-31";
-    if (ad !== bd) return ad < bd ? -1 : 1;
+    const aHasDue = Boolean(a.dueDate);
+    const bHasDue = Boolean(b.dueDate);
+    // 期日なしを期日ありより常に上に
+    if (aHasDue !== bHasDue) return aHasDue ? 1 : -1;
+    if (!aHasDue) {
+      // どちらも期日なし → 作成日時の古い順
+      return a.createdAt < b.createdAt ? -1 : 1;
+    }
+    // どちらも期日あり → 期日昇順（同日は作成日時の古い順）
+    if (a.dueDate !== b.dueDate) return a.dueDate! < b.dueDate! ? -1 : 1;
     return a.createdAt < b.createdAt ? -1 : 1;
   }
   const aDone = a.doneAt ?? a.createdAt;

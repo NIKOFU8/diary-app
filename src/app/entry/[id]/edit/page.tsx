@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { getStore } from "@/lib/storage";
 import type { DiaryEntry, Weather, Condition } from "@/lib/types";
 import { WEATHERS, CONDITIONS } from "@/lib/types";
-import { dateKey, dayRange, formatDateTimeJP } from "@/lib/date";
+import { dateKey, dayRange, formatTimeJP } from "@/lib/date";
 import { fileToResizedDataUrl } from "@/lib/image";
 import { correctTextRemote } from "@/lib/ai/client";
 import { authAwareError } from "@/lib/errors";
@@ -17,6 +17,7 @@ export default function EditEntryPage() {
   const [siblingIds, setSiblingIds] = useState<string[]>([]);
   const [weather, setWeather] = useState<Weather | null>(null);
   const [condition, setCondition] = useState<Condition | null>(null);
+  const [dateValue, setDateValue] = useState(""); // YYYY-MM-DD
   const [body, setBody] = useState("");
   const [photo, setPhoto] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -37,6 +38,7 @@ export default function EditEntryPage() {
       setEntry(e);
       setWeather(e.weather);
       setCondition(e.condition);
+      setDateValue(dateKey(e.createdAt));
       setBody(e.body);
       setPhoto(e.photoUrl);
       // 同じ日の他の記録（天気・体調を揃える対象）
@@ -75,7 +77,28 @@ export default function EditEntryPage() {
     setError(null);
     try {
       const s = await getStore();
-      await s.update(id, { weather, condition, body: body.trim(), photoDataUrl: photo });
+      // 日付が変更された場合は、元の時刻を保ったまま対象日だけを差し替える
+      let createdAt: string | undefined;
+      if (dateValue && dateValue !== dateKey(entry.createdAt)) {
+        const [y, m, d] = dateValue.split("-").map(Number);
+        const orig = new Date(entry.createdAt);
+        createdAt = new Date(
+          y,
+          m - 1,
+          d,
+          orig.getHours(),
+          orig.getMinutes(),
+          orig.getSeconds(),
+          orig.getMilliseconds(),
+        ).toISOString();
+      }
+      await s.update(id, {
+        weather,
+        condition,
+        body: body.trim(),
+        photoDataUrl: photo,
+        ...(createdAt ? { createdAt } : {}),
+      });
       // 天気・体調を変更した場合は、同じ日の他の記録にも反映（その日の値を揃える）
       const metaChanged = weather !== entry.weather || condition !== entry.condition;
       if (metaChanged && siblingIds.length > 0) {
@@ -106,7 +129,19 @@ export default function EditEntryPage() {
         <span className="w-9" />
       </header>
 
-      <p className="mt-3 text-xs text-slate-400">{formatDateTimeJP(entry.createdAt)}</p>
+      {/* 日付 */}
+      <section className="mt-4">
+        <p className="mb-2 text-xs font-semibold text-slate-500">日付</p>
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={dateValue}
+            onChange={(e) => setDateValue(e.target.value)}
+            className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-indigo-400"
+          />
+          <span className="flex-none text-xs text-slate-400">{formatTimeJP(entry.createdAt)}</span>
+        </div>
+      </section>
 
       {/* 天気 */}
       <section className="mt-5">

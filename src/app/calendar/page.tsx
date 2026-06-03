@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { getStore } from "@/lib/storage";
 import { getTaskStore } from "@/lib/tasks";
@@ -25,7 +25,10 @@ export default function CalendarPage() {
   const [selected, setSelected] = useState(() => dateKey(new Date()));
   const [dueTasks, setDueTasks] = useState<Task[]>([]);
 
-  const monthInputRef = useRef<HTMLInputElement>(null);
+  // 選択日への手動タスク追加用
+  const [addingTask, setAddingTask] = useState(false);
+  const [newTaskContent, setNewTaskContent] = useState("");
+  const [taskBusy, setTaskBusy] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -94,24 +97,30 @@ export default function CalendarPage() {
     await loadTasks();
   };
 
-  // 年月クイックジャンプ（ネイティブの月ピッカー）
-  const openMonthPicker = () => {
-    const el = monthInputRef.current as
-      | (HTMLInputElement & { showPicker?: () => void })
-      | null;
-    if (!el) return;
+  // 年月クイックジャンプ用の年の選択肢（現在年の前後を中心に、選択中の年も必ず含める）
+  const yearOptions = useMemo(() => {
+    const cur = new Date().getFullYear();
+    const min = Math.min(cur - 10, year);
+    const max = Math.max(cur + 1, year);
+    const ys: number[] = [];
+    for (let y = min; y <= max; y++) ys.push(y);
+    return ys;
+  }, [year]);
+
+  // 選択中の日付を期日として手動タスクを追加し、即座に一覧へ反映する
+  const addTaskForSelected = async () => {
+    const content = newTaskContent.trim();
+    if (!content || taskBusy) return;
+    setTaskBusy(true);
     try {
-      if (typeof el.showPicker === "function") el.showPicker();
-      else el.click();
-    } catch {
-      el.click();
+      const s = await getTaskStore();
+      await s.create({ content, dueDate: selected });
+      setNewTaskContent("");
+      setAddingTask(false);
+      await loadTasks();
+    } finally {
+      setTaskBusy(false);
     }
-  };
-  const onMonthChange = (v: string) => {
-    const m = /^(\d{4})-(\d{2})$/.exec(v);
-    if (!m) return;
-    setYear(Number(m[1]));
-    setMonth0(Number(m[2]) - 1);
   };
 
   const prevMonth = () =>
@@ -144,25 +153,48 @@ export default function CalendarPage() {
         >
           ‹
         </button>
-        <button
-          type="button"
-          onClick={openMonthPicker}
-          aria-label="年月を選択"
-          className="flex items-center gap-1 rounded-lg px-2 py-1 text-lg font-bold text-slate-900 active:bg-slate-100"
-        >
-          {year}年{month0 + 1}月
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="h-4 w-4 text-slate-400"
-          >
-            <path d="m6 9 6 6 6-6" />
-          </svg>
-        </button>
+        {/* 年月ジャンプ: ネイティブの<select>で確実に動作（iOS Safari含む） */}
+        <div className="flex items-center gap-1 text-lg font-bold text-slate-900">
+          <span className="relative inline-flex items-center rounded-lg active:bg-slate-100">
+            <select
+              aria-label="年を選択"
+              value={year}
+              onChange={(e) => setYear(Number(e.target.value))}
+              className="cursor-pointer appearance-none bg-transparent py-1 pl-2 pr-1 text-lg font-bold text-slate-900 outline-none"
+            >
+              {yearOptions.map((y) => (
+                <option key={y} value={y}>
+                  {y}年
+                </option>
+              ))}
+            </select>
+          </span>
+          <span className="relative inline-flex items-center rounded-lg active:bg-slate-100">
+            <select
+              aria-label="月を選択"
+              value={month0}
+              onChange={(e) => setMonth0(Number(e.target.value))}
+              className="cursor-pointer appearance-none bg-transparent py-1 pl-1 pr-6 text-lg font-bold text-slate-900 outline-none"
+            >
+              {Array.from({ length: 12 }, (_, i) => (
+                <option key={i} value={i}>
+                  {i + 1}月
+                </option>
+              ))}
+            </select>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="pointer-events-none absolute right-1 h-4 w-4 text-slate-400"
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </span>
+        </div>
         <button
           type="button"
           onClick={nextMonth}
@@ -172,15 +204,6 @@ export default function CalendarPage() {
           ›
         </button>
       </header>
-      <input
-        ref={monthInputRef}
-        type="month"
-        aria-hidden
-        tabIndex={-1}
-        value={`${year}-${String(month0 + 1).padStart(2, "0")}`}
-        onChange={(e) => onMonthChange(e.target.value)}
-        className="sr-only"
-      />
 
       <div className="mt-4 grid grid-cols-7 text-center text-xs text-slate-400">
         {WEEK_LABELS.map((d, i) => (
@@ -244,21 +267,11 @@ export default function CalendarPage() {
 
       <section className="mt-6 flex-1">
         <h2 className="text-sm font-bold text-slate-700">{formatDateJP(selected)}</h2>
-        <div className="mt-3 flex flex-col gap-2.5">
-          {loading ? (
-            <p className="py-6 text-center text-sm text-slate-400">読み込み中…</p>
-          ) : selectedEntries.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-slate-300 bg-white py-8 text-center text-sm text-slate-400">
-              この日の記録はありません
-            </div>
-          ) : (
-            selectedEntries.map((e) => <EntryCard key={e.id} entry={e} />)
-          )}
-        </div>
 
-        {selectedTasks.length > 0 ? (
-          <div className="mt-5">
-            <h3 className="text-xs font-semibold text-rose-500">この日が期日のタスク</h3>
+        {/* 1. この日が期日のタスク */}
+        <div className="mt-3">
+          <h3 className="text-xs font-semibold text-rose-500">この日が期日のタスク</h3>
+          {selectedTasks.length > 0 ? (
             <ul className="mt-2 flex flex-col gap-1.5">
               {selectedTasks.map((t) => (
                 <li
@@ -275,8 +288,70 @@ export default function CalendarPage() {
                 </li>
               ))}
             </ul>
+          ) : (
+            <p className="mt-2 text-xs text-slate-400">この日が期日のタスクはありません</p>
+          )}
+
+          {/* 2. タスクを追加（控えめ・インライン） */}
+          {addingTask ? (
+            <div className="mt-2 flex gap-2">
+              <input
+                autoFocus
+                value={newTaskContent}
+                onChange={(e) => setNewTaskContent(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") addTaskForSelected();
+                }}
+                placeholder="この日が期日のタスク"
+                className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-400"
+              />
+              <button
+                type="button"
+                onClick={addTaskForSelected}
+                disabled={!newTaskContent.trim() || taskBusy}
+                className="flex-none rounded-xl bg-indigo-600 px-4 text-sm font-bold text-white active:bg-indigo-700 disabled:opacity-50"
+              >
+                追加
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAddingTask(false);
+                  setNewTaskContent("");
+                }}
+                aria-label="キャンセル"
+                className="flex-none rounded-xl px-2 text-sm text-slate-400 active:bg-slate-100"
+              >
+                ×
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setAddingTask(true)}
+              className="mt-2 inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-500 active:bg-slate-100"
+            >
+              <span className="text-sm leading-none">＋</span>
+              タスクを追加
+            </button>
+          )}
+        </div>
+
+        {/* 3. この日の記録（日記） */}
+        <div className="mt-6">
+          <h3 className="text-xs font-semibold text-slate-500">この日の記録</h3>
+          <div className="mt-2 flex flex-col gap-2.5">
+            {loading ? (
+              <p className="py-6 text-center text-sm text-slate-400">読み込み中…</p>
+            ) : selectedEntries.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-300 bg-white py-8 text-center text-sm text-slate-400">
+                この日の記録はありません
+              </div>
+            ) : (
+              selectedEntries.map((e) => <EntryCard key={e.id} entry={e} />)
+            )}
           </div>
-        ) : null}
+        </div>
       </section>
 
       <div className="pointer-events-none fixed inset-x-0 bottom-20 z-30 mx-auto flex w-full max-w-md justify-end px-5">

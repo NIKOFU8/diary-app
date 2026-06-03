@@ -8,6 +8,8 @@ export interface EntryUpdate {
   weather?: Weather;
   condition?: Condition;
   body?: string;
+  /** ISO 8601。記録の対象日時を変更する場合に指定（undefined=変更しない） */
+  createdAt?: string;
   /** undefined=変更しない / null=削除 / "data:..."=差し替え / "http..."=既存維持 */
   photoDataUrl?: string | null;
 }

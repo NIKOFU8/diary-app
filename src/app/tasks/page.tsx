@@ -98,7 +98,7 @@ export default function TasksPage() {
     <main className="flex flex-1 flex-col px-5 pb-28 pt-6">
       <h1 className="text-lg font-bold tracking-tight text-slate-900">タスク</h1>
       <p className="mt-1 text-xs text-slate-400">
-        日記から自動で追加されるほか、手動でも追加できます
+        やるべきことを手動で追加して管理できます
       </p>
 
       <NotificationToggle />

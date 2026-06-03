@@ -4,8 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Weather, Condition } from "@/lib/types";
 import { getStore } from "@/lib/storage";
-import { getTaskStore } from "@/lib/tasks";
-import { extractTasksRemote } from "@/lib/ai/client";
 import { dateKey, dayRange } from "@/lib/date";
 import { authAwareError } from "@/lib/errors";
 import WeatherStep from "./WeatherStep";
@@ -21,26 +19,6 @@ interface Draft {
   condition: Condition | null;
   body: string;
   photoDataUrl: string | null;
-}
-
-// 日記本文からタスクを抽出して追加（ベストエフォート：失敗しても保存は成功扱い）。
-async function autoExtractTasks(entryId: string, body: string) {
-  if (!body.trim()) return;
-  try {
-    const texts = await extractTasksRemote(body);
-    if (texts.length === 0) return;
-    const taskStore = await getTaskStore();
-    const existing = await taskStore.list();
-    const existingContents = new Set(existing.map((t) => t.content.trim()));
-    for (const text of texts) {
-      const content = text.trim();
-      if (content && !existingContents.has(content)) {
-        await taskStore.create({ content, source: "ai", entryId });
-      }
-    }
-  } catch {
-    // 抽出は付加機能。失敗しても日記の保存自体は成功とする。
-  }
 }
 
 export default function RecordWizard() {
@@ -94,13 +72,12 @@ export default function RecordWizard() {
     setError(null);
     try {
       const store = await getStore();
-      const entry = await store.create({
+      await store.create({
         weather: draft.weather,
         condition: draft.condition,
         body: draft.body.trim(),
         photoDataUrl: draft.photoDataUrl,
       });
-      await autoExtractTasks(entry.id, entry.body);
       router.push("/calendar");
     } catch (e) {
       setError(authAwareError(e, "保存に失敗しました。もう一度お試しください。"));

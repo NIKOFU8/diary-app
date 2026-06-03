@@ -24,14 +24,3 @@ export async function summarizeRemote(entries: DiaryEntry[]): Promise<Summary> {
   if (!res.ok) throw new Error("まとめの生成に失敗しました");
   return (await res.json()) as Summary;
 }
-
-export async function extractTasksRemote(text: string): Promise<string[]> {
-  const res = await fetch("/api/ai/extract-tasks", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text }),
-  });
-  if (!res.ok) throw new Error("タスク抽出に失敗しました");
-  const json = (await res.json()) as { tasks?: string[] };
-  return json.tasks ?? [];
-}

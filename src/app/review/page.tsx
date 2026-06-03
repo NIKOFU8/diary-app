@@ -269,7 +269,23 @@ export default function ReviewPage() {
       {cloud ? (
         <section className="mt-7 flex-1">
           <div className="flex items-center justify-between gap-2">
-            <h2 className="text-sm font-bold text-slate-700">自動で作成されたまとめ</h2>
+            {/* 左端: タイトル＋日付ジャンプ（カレンダーマーク） */}
+            <div className="flex items-center gap-3">
+              <h2 className="text-sm font-bold text-slate-700">自動で作成されたまとめ</h2>
+              {!selectMode ? (
+                <span className="relative inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 text-slate-500">
+                  <CalendarGlyph />
+                  <input
+                    type="date"
+                    aria-label="日付から探す"
+                    onChange={(e) => jumpToDate(e.target.value)}
+                    className="absolute inset-0 cursor-pointer opacity-0"
+                  />
+                </span>
+              ) : null}
+            </div>
+
+            {/* 右端: 選択（誤操作防止のためカレンダーマークと十分に離す） */}
             {selectMode ? (
               <div className="flex items-center gap-1.5">
                 <button
@@ -295,28 +311,15 @@ export default function ReviewPage() {
                   キャンセル
                 </button>
               </div>
-            ) : (
-              <div className="flex items-center gap-4">
-                <span className="relative inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 text-slate-500">
-                  <CalendarGlyph />
-                  <input
-                    type="date"
-                    aria-label="日付から探す"
-                    onChange={(e) => jumpToDate(e.target.value)}
-                    className="absolute inset-0 cursor-pointer opacity-0"
-                  />
-                </span>
-                {(reports?.length ?? 0) > 0 ? (
-                  <button
-                    type="button"
-                    onClick={() => setSelectMode(true)}
-                    className="rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-600 active:bg-slate-100"
-                  >
-                    選択
-                  </button>
-                ) : null}
-              </div>
-            )}
+            ) : (reports?.length ?? 0) > 0 ? (
+              <button
+                type="button"
+                onClick={() => setSelectMode(true)}
+                className="rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-600 active:bg-slate-100"
+              >
+                選択
+              </button>
+            ) : null}
           </div>
           {jumpNote ? <p className="mt-1 text-[11px] text-amber-600">{jumpNote}</p> : null}
 

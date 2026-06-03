@@ -50,6 +50,7 @@ export function createLocalStore(): DiaryStore {
           weather: patch.weather ?? existing.weather,
           condition: patch.condition ?? existing.condition,
           body: patch.body ?? existing.body,
+          createdAt: patch.createdAt ?? existing.createdAt,
           photoUrl:
             patch.photoDataUrl === undefined ? existing.photoUrl : patch.photoDataUrl,
         };

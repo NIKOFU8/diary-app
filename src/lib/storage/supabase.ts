@@ -74,6 +74,7 @@ export function createSupabaseStore(): DiaryStore {
       if (patch.weather !== undefined) row.weather = patch.weather;
       if (patch.condition !== undefined) row.condition = patch.condition;
       if (patch.body !== undefined) row.body = patch.body;
+      if (patch.createdAt !== undefined) row.created_at = patch.createdAt;
       if (patch.photoDataUrl !== undefined) {
         if (patch.photoDataUrl === null) row.photo_url = null;
         else if (patch.photoDataUrl.startsWith("data:")) {
