@@ -5,7 +5,8 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "まいにち日記",
     short_name: "まいにち日記",
     description: "1問1答で気軽に続けられる、あなただけの日記アプリ",
-    start_url: "/",
+    // ルート("/")で初期画面リダイレクト処理がフックされる。?from=pwa はPWA起動を示す目印。
+    start_url: "/?from=pwa",
     display: "standalone",
     background_color: "#f1f5f9",
     theme_color: "#4f46e5",

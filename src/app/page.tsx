@@ -1,17 +1,58 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getStore } from "@/lib/storage";
 import type { DiaryEntry } from "@/lib/types";
 import EntryCard from "@/components/EntryCard";
 import { useAuth } from "@/components/auth/AuthProvider";
+import StartScreenSettings from "@/components/StartScreenSettings";
+import { getStartScreen } from "@/lib/settings";
+
+// この「アプリ起動セッション」で初期画面リダイレクトを実施済みかのフラグ。
+// sessionStorage はタブ/PWAウィンドウ単位で、コールド起動ごとにリセットされる。
+const LAUNCH_FLAG = "diary.launchHandled";
 
 export default function HomePage() {
+  const router = useRouter();
+  // ready=false の間はスプラッシュを描画する。SSRと初回クライアント描画を一致させ、
+  // ハイドレーション不一致とホーム内容のチラつき（FOUC）を防ぐ。
+  const [ready, setReady] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
   const [entries, setEntries] = useState<DiaryEntry[] | null>(null);
   const { configured, session, signOut } = useAuth();
 
+  // 起動時の初期画面リダイレクト（このアプリ起動につき一度だけ）
   useEffect(() => {
+    let alreadyHandled = false;
+    try {
+      alreadyHandled = sessionStorage.getItem(LAUNCH_FLAG) === "1";
+      sessionStorage.setItem(LAUNCH_FLAG, "1");
+    } catch {
+      /* sessionStorage 無効時はそのまま続行 */
+    }
+    // PWA起動（start_url=/?from=pwa）か、このセッション初回の "/" アクセス時に振り分ける
+    const fromLaunch = (() => {
+      try {
+        return new URLSearchParams(window.location.search).has("from");
+      } catch {
+        return false;
+      }
+    })();
+
+    const target = getStartScreen();
+    if ((fromLaunch || !alreadyHandled) && target && target !== "/") {
+      setRedirecting(true);
+      router.replace(target);
+      return; // ホームは描画せず遷移
+    }
+    setReady(true);
+  }, [router]);
+
+  // ホーム表示が確定してから記録を読み込む
+  useEffect(() => {
+    if (!ready) return;
     let active = true;
     getStore()
       .then((s) => s.listAll())
@@ -20,16 +61,28 @@ export default function HomePage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [ready]);
+
+  if (!ready) {
+    return (
+      <main className="flex flex-1 items-center justify-center px-5">
+        <p className="text-sm text-slate-400">{redirecting ? "移動中…" : "読み込み中…"}</p>
+      </main>
+    );
+  }
 
   const recent = entries?.slice(0, 5) ?? [];
 
   return (
     <main className="flex flex-1 flex-col px-5 pb-28 pt-10">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">まいにち日記</h1>
-          <p className="mt-2 text-sm text-slate-500">今日はどんな一日でしたか？</p>
+        <div className="flex items-start gap-2">
+          {/* タイトル左の控えめな設定ボタン（起動時の初期画面を選択） */}
+          <StartScreenSettings />
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900">まいにち日記</h1>
+            <p className="mt-2 text-sm text-slate-500">今日はどんな一日でしたか？</p>
+          </div>
         </div>
         {configured && session ? (
           <button
