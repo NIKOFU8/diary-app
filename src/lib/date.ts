@@ -50,10 +50,11 @@ export function monthRange(year: number, month0: number): { startISO: string; en
   return { startISO: start.toISOString(), endISO: end.toISOString() };
 }
 
-/** 6x7 grid of dates covering the month (weeks start Sunday). */
+/** 6x7 grid of dates covering the month (weeks start Monday). */
 export function monthGrid(year: number, month0: number): Date[] {
   const first = new Date(year, month0, 1);
-  const startOffset = first.getDay();
+  // getDay(): 0=Sun..6=Sat → Monday-start offset (Mon=0..Sun=6)
+  const startOffset = (first.getDay() + 6) % 7;
   const cells: Date[] = [];
   for (let i = 0; i < 42; i++) {
     cells.push(new Date(year, month0, 1 - startOffset + i));
@@ -61,4 +62,5 @@ export function monthGrid(year: number, month0: number): Date[] {
   return cells;
 }
 
-export const WEEK_LABELS = DOW;
+/** Weekday header labels for the calendar (Monday-first). */
+export const WEEK_LABELS = ["月", "火", "水", "木", "金", "土", "日"];

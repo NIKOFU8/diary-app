@@ -231,7 +231,7 @@ export default function CalendarPage() {
       <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} className="touch-pan-y">
         <div className="mt-4 grid grid-cols-7 text-center text-xs text-slate-400">
         {WEEK_LABELS.map((d, i) => (
-          <div key={d} className={i === 0 ? "text-rose-400" : i === 6 ? "text-sky-400" : ""}>
+          <div key={d} className={i === 6 ? "text-rose-400" : i === 5 ? "text-sky-400" : ""}>
             {d}
           </div>
         ))}
