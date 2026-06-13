@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { getStore, isSupabaseConfigured } from "@/lib/storage";
 import { summarizeRemote } from "@/lib/ai/client";
 import type { Summary } from "@/lib/ai/types";
-import { dateKey, dayRange } from "@/lib/date";
+import { dateKey, dayRange, formatRangeJP } from "@/lib/date";
 import { listReports, deleteReport, deleteReports, type Report } from "@/lib/reports/store";
 
 export default function ReviewPage() {
@@ -361,7 +361,9 @@ export default function ReviewPage() {
                           <span className="block truncate text-sm font-bold text-slate-800">
                             {r.label}
                           </span>
-                          <span className="text-[11px] text-slate-400">{r.entryCount}件の記録</span>
+                          <span className="text-[11px] text-slate-400">
+                            {formatRangeJP(r.periodStart, r.periodEnd)}・{r.entryCount}件の記録
+                          </span>
                         </span>
                       </button>
                     ) : (
@@ -376,7 +378,7 @@ export default function ReviewPage() {
                               {r.label}
                             </span>
                             <span className="text-[11px] text-slate-400">
-                              {r.entryCount}件の記録
+                              {formatRangeJP(r.periodStart, r.periodEnd)}・{r.entryCount}件の記録
                             </span>
                           </span>
                           <Chevron open={open} />

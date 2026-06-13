@@ -35,6 +35,19 @@ export function formatShortJP(d: string | Date): string {
   return `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
+/**
+ * 期間ラベル "2026/6/8 〜 6/14"。
+ * YYYY-MM-DD のキーを（タイムゾーンに依存せず）そのまま整形する。
+ * 同じ年なら終端の年は省略し、年をまたぐ場合のみ終端にも年を付ける。
+ */
+export function formatRangeJP(startKey: string, endKey: string): string {
+  const [sy, sm, sd] = startKey.split("-").map(Number);
+  const [ey, em, ed] = endKey.split("-").map(Number);
+  const startStr = `${sy}/${sm}/${sd}`;
+  const endStr = sy === ey ? `${em}/${ed}` : `${ey}/${em}/${ed}`;
+  return `${startStr} 〜 ${endStr}`;
+}
+
 /** ISO start/end of a local date key. */
 export function dayRange(key: string): { startISO: string; endISO: string } {
   const [y, m, d] = key.split("-").map(Number);
