@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { getTaskStore } from "@/lib/tasks";
 import type { Task } from "@/lib/tasks";
+import { relativeDayLabel } from "@/lib/date";
 import NotificationToggle from "@/components/NotificationToggle";
 import {
   DndContext,
@@ -329,6 +330,7 @@ export default function TasksPage() {
                   }
                 >
                   期日 {mdLabel(t.dueDate)}
+                  {relativeDayLabel(t.dueDate) ? `（${relativeDayLabel(t.dueDate)}）` : ""}
                 </span>
               ) : null}
               {t.notifyDaysBefore !== null ? (

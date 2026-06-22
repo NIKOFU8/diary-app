@@ -19,6 +19,7 @@ interface Draft {
   condition: Condition | null;
   body: string;
   photoDataUrl: string | null;
+  dateKey: string; // YYYY-MM-DD（記入対象の日付。既定は今日）
 }
 
 export default function RecordWizard() {
@@ -31,6 +32,7 @@ export default function RecordWizard() {
     condition: null,
     body: "",
     photoDataUrl: null,
+    dateKey: dateKey(new Date()),
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -72,11 +74,24 @@ export default function RecordWizard() {
     setError(null);
     try {
       const store = await getStore();
+      // 選んだ日付＋現在時刻で createdAt を組み立てる（今日のままなら now と同義）
+      const now = new Date();
+      const [y, m, d] = draft.dateKey.split("-").map(Number);
+      const createdAt = new Date(
+        y,
+        m - 1,
+        d,
+        now.getHours(),
+        now.getMinutes(),
+        now.getSeconds(),
+        now.getMilliseconds(),
+      ).toISOString();
       await store.create({
         weather: draft.weather,
         condition: draft.condition,
         body: draft.body.trim(),
         photoDataUrl: draft.photoDataUrl,
+        createdAt,
       });
       router.push("/calendar");
     } catch (e) {
@@ -125,6 +140,8 @@ export default function RecordWizard() {
           total={total}
           value={draft.body}
           onChange={(t) => update({ body: t })}
+          dateKey={draft.dateKey}
+          onDateChange={(k) => update({ dateKey: k })}
           onBack={back}
           onNext={next}
         />
@@ -153,6 +170,8 @@ export default function RecordWizard() {
           condition={draft.condition as Condition}
           body={draft.body}
           photoDataUrl={draft.photoDataUrl}
+          dateKey={draft.dateKey}
+          onDateChange={(k) => update({ dateKey: k })}
           saving={saving}
           error={error}
           onBack={back}

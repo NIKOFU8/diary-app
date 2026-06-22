@@ -1,7 +1,7 @@
 "use client";
 
 import { weatherMeta, conditionMeta, type Weather, type Condition } from "@/lib/types";
-import { formatDateTimeJP } from "@/lib/date";
+import { formatTimeJP } from "@/lib/date";
 import StepShell from "./StepShell";
 
 export default function ReviewStep({
@@ -11,6 +11,8 @@ export default function ReviewStep({
   condition,
   body,
   photoDataUrl,
+  dateKey,
+  onDateChange,
   saving,
   error,
   onBack,
@@ -22,6 +24,8 @@ export default function ReviewStep({
   condition: Condition;
   body: string;
   photoDataUrl: string | null;
+  dateKey: string;
+  onDateChange: (key: string) => void;
   saving: boolean;
   error: string | null;
   onBack: () => void;
@@ -51,7 +55,18 @@ export default function ReviewStep({
       }
     >
       <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4">
-        <Row label="日時" value={formatDateTimeJP(new Date())} />
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs text-slate-400">日付</span>
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={dateKey}
+              onChange={(e) => onDateChange(e.target.value)}
+              className="min-w-0 rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm outline-none focus:border-indigo-400"
+            />
+            <span className="flex-none text-sm text-slate-400">{formatTimeJP(new Date())}</span>
+          </div>
+        </div>
         <Row label="天気" value={w.label} />
         <Row label="体調" value={`${c.label}（${c.value}）`} />
         <div>

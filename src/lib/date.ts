@@ -36,6 +36,33 @@ export function formatShortJP(d: string | Date): string {
 }
 
 /**
+ * 今日との日数差から相対日ラベルを返す（-2〜+2 のみ）。範囲外は null。
+ * key は YYYY-MM-DD。差はローカル深夜(00:00)同士で算出し、DST等の影響を避ける。
+ */
+export function relativeDayLabel(key: string): string | null {
+  const [y, m, d] = key.split("-").map(Number);
+  if (!y || !m || !d) return null;
+  const target = new Date(y, m - 1, d).getTime();
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const diff = Math.round((target - today) / 86_400_000);
+  switch (diff) {
+    case -2:
+      return "一昨日";
+    case -1:
+      return "昨日";
+    case 0:
+      return "今日";
+    case 1:
+      return "明日";
+    case 2:
+      return "明後日";
+    default:
+      return null;
+  }
+}
+
+/**
  * 期間ラベル "2026/6/8 〜 6/14"。
  * YYYY-MM-DD のキーを（タイムゾーンに依存せず）そのまま整形する。
  * 同じ年なら終端の年は省略し、年をまたぐ場合のみ終端にも年を付ける。

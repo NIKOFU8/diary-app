@@ -10,6 +10,8 @@ export default function DiaryStep({
   total,
   value,
   onChange,
+  dateKey,
+  onDateChange,
   onBack,
   onNext,
 }: {
@@ -17,6 +19,8 @@ export default function DiaryStep({
   total: number;
   value: string;
   onChange: (text: string) => void;
+  dateKey: string;
+  onDateChange: (key: string) => void;
   onBack: () => void;
   onNext: () => void;
 }) {
@@ -102,6 +106,16 @@ export default function DiaryStep({
         </button>
       }
     >
+      <label className="mb-3 flex items-center gap-2">
+        <span className="flex-none text-xs font-semibold text-slate-500">日付</span>
+        <input
+          type="date"
+          value={dateKey}
+          onChange={(e) => onDateChange(e.target.value)}
+          className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-400"
+        />
+      </label>
+
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
