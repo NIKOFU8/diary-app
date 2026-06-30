@@ -37,6 +37,13 @@ function dayKey(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
+// 「今日」はJSTの暦日で判定する。cron(Vercel)はUTCで動くため、通知時刻を朝へ
+// 前倒しすると（朝8:00 JST = 前日23:00 UTC）UTC日付がJST日付より1日遅れ、
+// タスク期日通知が「期日の翌朝」にずれてしまう。それを防ぐ。
+function jstDayKey(d: Date): string {
+  return new Date(d.getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
 async function sendPush(
   sb: SupabaseClient,
   subs: SubRow[],
@@ -71,7 +78,7 @@ async function runTaskNotifications(sb: SupabaseClient): Promise<{ due: number; 
     .not("notify_days_before", "is", null);
   if (error) throw error;
 
-  const todayKey = dayKey(new Date());
+  const todayKey = jstDayKey(new Date());
   const due = (tasks as TaskRow[]).filter((t) => {
     if (!t.due_date || t.notify_days_before == null) return false;
     const notifyDate = new Date(`${t.due_date}T00:00:00Z`);
